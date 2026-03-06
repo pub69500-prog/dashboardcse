@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard CSE - Récapitulatif des Prestations</title>
+    <meta name="description" content="Tableau de bord interactif pour le suivi des prestations CSE avec analyse multi-années">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-deep: #0a0e14;
+            --bg-card: #161b22;
+            --bg-elevated: #1c2128;
+            --bg-hover: #252c35;
+            --border-subtle: #2d333b;
+            --border-default: #3d444d;
+            --accent-primary: #58a6ff;
+            --accent-success: #3fb950;
+            --accent-warning: #d29922;
+            --accent-danger: #f85149;
+            --accent-purple: #a371f7;
+            --accent-pink: #db61a2;
+            --accent-cyan: #39c5cf;
+            --text-primary: #e6edf3;
+            --text-secondary: #8d96a0;
+            --text-muted: #6e7681;
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+            --shadow-glow: 0 0 40px rgba(88,166,255,0.15);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(ellipse 80% 50% at 20% -10%, rgba(88,166,255,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 110%, rgba(163,113,247,0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .upload-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .upload-container.hidden { display: none; }
+        .upload-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 750px;
+            width: 100%;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            position: relative;
+            overflow: hidden;
+        }
+        .upload-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f0883e, #a371f7, #3fb950, #58a6ff);
+        }
+        .upload-header { text-align: center; margin-bottom: 2rem; }
+        .upload-logo { font-size: 4rem; margin-bottom: 1rem; display: block; }
+        .upload-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .upload-subtitle { color: var(--text-secondary); font-size: 1rem; }
+        .upload-zone {
+            border: 2px dashed var(--border-default);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(88,166,255,0.02);
+            margin-bottom: 2rem;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent-primary);
+            background: rgba(88,166,255,0.08);
+            transform: translateY(-2px);
+        }
+        .upload-zone-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+        .upload-zone-text { font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+        .upload-zone-hint { font-size: 0.85rem; color: var(--text-muted); }
+        .upload-zone-formats { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; }
+        .format-badge {
+            padding: 0.3rem 0.8rem;
+            background: var(--bg-elevated);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent-success);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .upload-input { display: none; }
+        .data-structure {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .data-structure-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent-primary);
+        }
+        .columns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+        }
+        .column-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 0.85rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            border: 1px solid var(--border-subtle);
+        }
+        .column-item.required { border-color: rgba(210,153,34,0.5); }
+        .column-item .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .column-item.required .dot { background: var(--accent-warning); }
+        .column-item.optional .dot { background: var(--text-muted); }
+        .column-name { font-family: 'JetBrains Mono', monospace; color: var(--text-primary); }
+        .column-type { font-size: 0.65rem; color: var(--text-muted); margin-left: auto; background: var(--bg-deep); padding: 0.15rem 0.4rem; border-radius: 4px; }
+        .example-section { margin-top: 1.5rem; }
+        .example-title { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .example-table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-subtle); }
+        .example-table { width: 100%; font-size: 0.7rem; border-collapse: collapse; white-space: nowrap; }
+        .example-table th {
+            background: var(--bg-elevated);
+            padding: 0.6rem 0.5rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--accent-primary);
+            font-family: 'JetBrains Mono', monospace;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .example-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .example-table tr:last-child td { border-bottom: none; }
+        .btn-template {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            margin-top: 1rem;
+        }
+        .btn-template:hover { background: var(--bg-hover); border-color: var(--accent-primary); color: var(--accent-primary); }
+        .upload-error {
+            background: rgba(248,81,73,0.1);
+            border: 1px solid var(--accent-danger);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .upload-error.visible { display: block; }
+        .upload-error-title { color: var(--accent-danger); font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .upload-error-message { color: var(--text-secondary); font-size: 0.85rem; }
+        .processing-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10,14,20,0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .processing-overlay.visible { display: flex; }
+        .spinner { width: 60px; height: 60px; border: 3px solid var(--border-subtle); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .processing-text { color: var(--text-secondary); font-size: 1.1rem; }
+        /* Dashboard Styles */
+        .app-container { max-width: 1800px; margin: 0 auto; padding: 2rem; display: none; }
+        .app-container.visible { display: block; }
+        .header {
+            text-align: center;
+            padding: 2.5rem 2rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #f0883e, #a371f7, #3fb950, #58a6ff); }
+        .header-actions { position: absolute; top: 1rem; right: 1rem; }
+        .btn-reset {
+            padding: 0.5rem 1rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover { background: var(--bg-hover); border-color: var(--accent-danger); color: var(--accent-danger); }
+        .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-primary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .subtitle { color: var(--text-secondary); font-size: 1rem; }
+        .data-info { display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; flex-wrap: wrap; }
+        .data-badge { padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.25rem; text-align: center; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent-success); }
+        .stat-card.highlight .stat-value { color: var(--accent-primary); }
+        .stat-card.special .stat-value { background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .stat-card.hidden { display: none; }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+        .controls { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; align-items: center; }
+        .search-box { flex: 1; min-width: 250px; position: relative; }
+        .search-box::before { content: "🔍"; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
+        .search-input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; color: var(--text-primary); font-size: 0.95rem; font-family: inherit; }
+        .search-input:focus { outline: none; border-color: var(--accent-primary); }
+        .year-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .year-tab { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-secondary); font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+        .year-tab:hover { background: var(--bg-elevated); }
+        .year-tab.active { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--bg-deep); }
+        .year-tab.all.active { background: linear-gradient(135deg, #f0883e, #a371f7, #3fb950, #58a6ff); }
+        .btn-action { padding: 0.5rem 1rem; border-radius: 8px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+        .btn-expand { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+        .btn-expand:hover { background: var(--bg-hover); }
+        .btn-export { background: var(--accent-success); color: white; }
+        .table-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg); }
+        .table-scroll { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: var(--bg-elevated); position: sticky; top: 0; z-index: 10; }
+        th { padding: 0.875rem 0.75rem; text-align: left; font-weight: 600; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-default); cursor: pointer; white-space: nowrap; }
+        th:hover { color: var(--accent-primary); background: rgba(88,166,255,0.05); }
+        th.sorted-asc::after { content: " ↑"; color: var(--accent-primary); }
+        th.sorted-desc::after { content: " ↓"; color: var(--accent-primary); }
+        th.no-sort { cursor: default; }
+        th.no-sort:hover { color: var(--text-muted); background: transparent; }
+        th.col-hidden, td.col-hidden { display: none; }
+        .main-row { cursor: pointer; }
+        .main-row:hover { background: var(--bg-hover); }
+        .main-row td { padding: 0.75rem; border-bottom: 1px solid var(--border-subtle); }
+        .expand-cell { width: 36px; text-align: center; }
+        .expand-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: var(--bg-elevated); border-radius: 5px; font-size: 0.65rem; }
+        .main-row.expanded .expand-icon { background: var(--accent-primary); color: var(--bg-deep); transform: rotate(90deg); }
+        .name-cell { font-weight: 600; }
+        .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+        .text-muted { color: var(--text-muted); }
+        .amount { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--accent-success); }
+        .amount-weighted { color: var(--accent-purple); }
+        .cat-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.75rem; font-weight: 600; }
+        .cat-badge.cat-1 { background: rgba(88,166,255,0.15); color: var(--accent-primary); }
+        .cat-badge.cat-2 { background: rgba(63,185,80,0.15); color: var(--accent-success); }
+        .cat-badge.cat-3 { background: rgba(210,153,34,0.15); color: var(--accent-warning); }
+        .cat-badge.cat-4 { background: rgba(248,81,73,0.15); color: var(--accent-danger); }
+        .cat-badge.cat-5 { background: rgba(163,113,247,0.15); color: var(--accent-purple); }
+        .cat-badge.cat-6 { background: rgba(219,97,162,0.15); color: var(--accent-pink); }
+        .year-dots { display: flex; gap: 0.3rem; }
+        .year-dot { width: 8px; height: 8px; border-radius: 50%; opacity: 0.3; background: var(--text-muted); }
+        .year-dot.active { opacity: 1; box-shadow: 0 0 6px currentColor; }
+        .details-row { display: none; }
+        .details-row.visible { display: table-row; }
+        .details-row > td { padding: 0; background: var(--bg-deep); border-bottom: 2px solid var(--accent-primary); }
+        .details-wrapper { padding: 1rem 1rem 1rem 3rem; }
+        .year-group { margin-bottom: 1.25rem; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-subtle); overflow: hidden; }
+        .year-group:last-child { margin-bottom: 0; }
+        .year-group-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem; background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; }
+        .year-label { font-weight: 700; font-size: 0.85rem; padding: 0.3rem 0.75rem; border-radius: 5px; }
+        .year-weight { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .year-subtotal { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--accent-success); font-size: 0.9rem; }
+        .year-group-content { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+        .year-table-wrapper { flex: 1; min-width: 350px; overflow-x: auto; }
+        .year-chart-wrapper { width: 260px; display: flex; flex-direction: column; align-items: center; padding: 0.5rem; background: var(--bg-elevated); border-radius: 8px; }
+        .chart-title { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .chart-container { width: 100%; max-width: 180px; }
+        .chart-legend { margin-top: 0.5rem; width: 100%; max-height: 120px; overflow-y: auto; }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0; font-size: 0.7rem; }
+        .legend-color { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+        .legend-label { flex: 1; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .legend-value { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--accent-success); }
+        .details-table { width: 100%; background: var(--bg-elevated); border-radius: 6px; overflow: hidden; }
+        .details-table th { background: var(--bg-card); padding: 0.5rem 0.6rem; font-size: 0.65rem; cursor: pointer; }
+        .details-table th:hover { background: var(--bg-hover); color: var(--accent-primary); }
+        .details-table td { padding: 0.5rem 0.6rem; font-size: 0.8rem; border-bottom: 1px solid var(--border-subtle); }
+        .details-table tr:last-child td { border-bottom: none; }
+        .prestation-name { color: var(--accent-cyan); font-weight: 500; }
+        .empty-state { text-align: center; padding: 3rem 2rem; color: var(--text-muted); }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 0.75rem; opacity: 0.5; }
+        .global-charts-section { margin-top: 2rem; }
+        .charts-header { margin-bottom: 1.25rem; }
+        .charts-title { font-size: 1.3rem; font-weight: 700; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1.25rem; }
+        .chart-card-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.875rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
+        .chart-card-container { max-width: 220px; margin: 0 auto; }
+        .chart-card-legend { margin-top: 0.875rem; max-height: 160px; overflow-y: auto; }
+        @media (max-width: 768px) {
+            .app-container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .year-group-content { flex-direction: column; }
+            .year-table-wrapper, .year-chart-wrapper { min-width: 100%; width: 100%; }
+            .upload-card { padding: 1.5rem; }
+        }
+        .github-link { position: fixed; bottom: 1rem; right: 1rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-secondary); font-size: 0.8rem; text-decoration: none; transition: all 0.2s; }
+        .github-link:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+    </style>
+</head>
+<body>
+    <!-- Processing Overlay -->
+    <div class="processing-overlay" id="processing">
+        <div class="spinner"></div>
+        <div class="processing-text">Traitement des données en cours...</div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-container" id="uploadContainer">
+        <div class="upload-card">
+            <div class="upload-header">
+                <span class="upload-logo">📊</span>
+                <h1 class="upload-title">Dashboard CSE</h1>
+                <p class="upload-subtitle">Importez votre fichier Excel pour générer le tableau de bord</p>
+            </div>
+
+            <div class="upload-zone" id="uploadZone">
+                <span class="upload-zone-icon">📁</span>
+                <p class="upload-zone-text">Glissez-déposez votre fichier ici</p>
+                <p class="upload-zone-hint">ou cliquez pour sélectionner un fichier</p>
+                <div class="upload-zone-formats">
+                    <span class="format-badge">.xlsx</span>
+                    <span class="format-badge">.xls</span>
+                </div>
+                <input type="file" class="upload-input" id="fileInput" accept=".xlsx,.xls">
+            </div>
+
+            <div class="data-structure">
+                <div class="data-structure-title">
+                    <span>📋</span>
+                    <span>Structure des données attendue</span>
+                </div>
+                <div class="columns-grid">
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Année</span>
+                        <span class="column-type">nombre</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Prestation</span>
+                        <span class="column-type">texte</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Date Dossier</span>
+                        <span class="column-type">date</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Matricule</span>
+                        <span class="column-type">nombre</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Nom</span>
+                        <span class="column-type">texte</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Prénom</span>
+                        <span class="column-type">texte</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Catégorie</span>
+                        <span class="column-type">nombre 1-6</span>
+                    </div>
+                    <div class="column-item required">
+                        <span class="dot"></span>
+                        <span class="column-name">Part CE</span>
+                        <span class="column-type">nombre €</span>
+                    </div>
+                    <div class="column-item optional">
+                        <span class="dot"></span>
+                        <span class="column-name">Date Création</span>
+                        <span class="column-type">date</span>
+                    </div>
+                    <div class="column-item optional">
+                        <span class="dot"></span>
+                        <span class="column-name">Créateur</span>
+                        <span class="column-type">texte</span>
+                    </div>
+                </div>
+
+                <div class="example-section">
+                    <div class="example-title">
+                        <span>💡</span>
+                        <span>Exemple de données</span>
+                    </div>
+                    <div class="example-table-wrapper">
+                        <table class="example-table">
+                            <thead>
+                                <tr>
+                                    <th>Année</th>
+                                    <th>Prestation</th>
+                                    <th>Date Dossier</th>
+                                    <th>Matricule</th>
+                                    <th>Nom</th>
+                                    <th>Prénom</th>
+                                    <th>Catégorie</th>
+                                    <th>Part CE</th>
+                                    <th>Date Création</th>
+                                    <th>Créateur</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024</td>
+                                    <td>Chèques Vacances</td>
+                                    <td>15/03/2024</td>
+                                    <td>100234</td>
+                                    <td>DUPONT</td>
+                                    <td>Marie</td>
+                                    <td>2</td>
+                                    <td>450</td>
+                                    <td>15/03/2024</td>
+                                    <td>Admin</td>
+                                </tr>
+                                <tr>
+                                    <td>2024</td>
+                                    <td>Noël Enfants</td>
+                                    <td>01/12/2024</td>
+                                    <td>100234</td>
+                                    <td>DUPONT</td>
+                                    <td>Marie</td>
+                                    <td>2</td>
+                                    <td>50</td>
+                                    <td>01/12/2024</td>
+                                    <td>Admin</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <button class="btn-template" id="btnTemplate">
+                    <span>📥</span>
+                    Télécharger un modèle Excel
+                </button>
+            </div>
+
+            <div class="upload-error" id="uploadError">
+                <div class="upload-error-title">
+                    <span>⚠️</span>
+                    <span>Erreur de fichier</span>
+                </div>
+                <div class="upload-error-message" id="errorMessage"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Dashboard Section -->
+    <div class="app-container" id="appContainer">
+        <header class="header">
+            <div class="header-actions">
+                <button class="btn-reset" id="btnReset">
+                    <span>↩️</span>
+                    Nouveau fichier
+                </button>
+            </div>
+            <span class="logo">📊</span>
+            <h1>Récapitulatif CSE</h1>
+            <p class="subtitle" id="fileInfo">Données chargées</p>
+            <div class="data-info" id="dataInfo"></div>
+        </header>
+        <section class="stats-grid">
+            <div class="stat-card"><div class="stat-value" id="statBeneficiaires">0</div><div class="stat-label">Bénéficiaires</div></div>
+            <div class="stat-card"><div class="stat-value" id="statPrestations">0</div><div class="stat-label">Prestations</div></div>
+            <div class="stat-card highlight"><div class="stat-value" id="statPartCE">0 €</div><div class="stat-label" id="statPartCELabel">Part CSE Globale</div></div>
+            <div class="stat-card special" id="statPondereCard"><div class="stat-value" id="statPondere">0 €</div><div class="stat-label">Part CSE Pondérée</div></div>
+        </section>
+        <div class="controls">
+            <div class="search-box"><input type="text" class="search-input" id="searchInput" placeholder="Rechercher par nom, prénom, matricule, prestation..."></div>
+            <div class="year-tabs" id="yearTabs"></div>
+            <button class="btn-action btn-expand" id="btnExpand">▶ Tout déplier</button>
+            <button class="btn-action btn-export" id="btnExport">📥 Export CSV</button>
+        </div>
+        <div class="table-container">
+            <div class="table-scroll">
+                <table id="mainTable">
+                    <thead>
+                        <tr>
+                            <th class="no-sort expand-cell"></th>
+                            <th data-sort="nom">Nom</th>
+                            <th data-sort="prenom">Prénom</th>
+                            <th data-sort="matricule">Matricule</th>
+                            <th data-sort="categorie">Cat.</th>
+                            <th data-sort="partCEGlobale" id="colPartCE">Part CSE</th>
+                            <th data-sort="partCEPonderee" id="colPartPonderee">Part CSE Pond.</th>
+                            <th data-sort="nbPrestations">Nb</th>
+                            <th class="no-sort">Années</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <section class="global-charts-section">
+            <div class="charts-header"><h2 class="charts-title">📈 Répartition par Prestation et par Année</h2></div>
+            <div class="charts-grid" id="chartsGrid"></div>
+        </section>
+    </div>
+
+    <a href="https://github.com" target="_blank" class="github-link" id="githubLink" style="display:none;">
+        <span>⭐</span>
+        <span>GitHub</span>
+    </a>
+    <script>
+    // Configuration
+    const CONFIG = {
+        REQUIRED_COLUMNS: ['Année', 'Prestation', 'Date Dossier', 'Matricule', 'Nom', 'Prénom', 'Catégorie', 'Part CE'],
+        OPTIONAL_COLUMNS: ['Date Création', 'Créateur'],
+        WEIGHT_MAP: { 2023: 0.25, 2024: 0.50, 2025: 0.75, 2026: 1.00 }
+    };
+
+    const CHART_COLORS = ['#58a6ff','#3fb950','#f0883e','#a371f7','#db61a2','#39c5cf','#d29922','#f85149','#8b949e','#7ee787','#a5d6ff','#ffa657','#d2a8ff','#ff7b72','#79c0ff','#56d364'];
+    
+    let RAW_DATA = {};
+    const dataStore = {
+        aggregated: [],
+        loadedYears: new Set(),
+        currentFilter: 'all',
+        currentSort: { column: 'nom', direction: 'asc' },
+        allExpanded: false,
+        detailSorts: {},
+        globalCharts: {},
+        miniCharts: {}
+    };
+
+    // Utility Functions
+    function formatCurrency(v) {
+        return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0);
+    }
+    function formatDate(d) {
+        if (!d) return '-';
+        if (d instanceof Date) {
+            return d.toLocaleDateString('fr-FR');
+        }
+        if (typeof d === 'string') {
+            if (d.includes('-')) { const p=d.split('-'); if(p.length===3) return `${p[2]}/${p[1]}/${p[0]}`; }
+            return d;
+        }
+        return '-';
+    }
+    function excelDateToJS(serial) {
+        if (serial instanceof Date) return serial;
+        if (typeof serial === 'number') {
+            const utc_days = Math.floor(serial - 25569);
+            return new Date(utc_days * 86400 * 1000);
+        }
+        return serial;
+    }
+
+    // File Upload Handling
+    function setupUpload() {
+        const zone = document.getElementById('uploadZone');
+        const input = document.getElementById('fileInput');
+        
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        input.addEventListener('change', () => { if (input.files.length) handleFile(input.files[0]); });
+        
+        document.getElementById('btnTemplate').addEventListener('click', downloadTemplate);
+        document.getElementById('btnReset').addEventListener('click', resetApp);
+    }
+
+    function showError(msg) {
+        const err = document.getElementById('uploadError');
+        document.getElementById('errorMessage').textContent = msg;
+        err.classList.add('visible');
+    }
+    function hideError() {
+        document.getElementById('uploadError').classList.remove('visible');
+    }
+
+    function handleFile(file) {
+        hideError();
+        if (!file.name.match(/\.(xlsx|xls)$/i)) {
+            showError('Format de fichier non supporté. Veuillez utiliser un fichier .xlsx ou .xls');
+            return;
+        }
+        
+        document.getElementById('processing').classList.add('visible');
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet);
+                
+                if (!json.length) {
+                    throw new Error('Le fichier est vide');
+                }
+                
+                // Validate columns
+                const headers = Object.keys(json[0]);
+                const missing = CONFIG.REQUIRED_COLUMNS.filter(col => !headers.some(h => h.toLowerCase().trim() === col.toLowerCase()));
+                if (missing.length) {
+                    throw new Error(`Colonnes manquantes : ${missing.join(', ')}`);
+                }
+                
+                processData(json, file.name);
+            } catch (err) {
+                document.getElementById('processing').classList.remove('visible');
+                showError(err.message || 'Erreur lors de la lecture du fichier');
+            }
+        };
+        reader.onerror = () => {
+            document.getElementById('processing').classList.remove('visible');
+            showError('Erreur lors de la lecture du fichier');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function normalizeColumnName(name) {
+        const map = {
+            'année': 'annee', 'annee': 'annee',
+            'prestation': 'prestation',
+            'date dossier': 'dateDossier', 'datedossier': 'dateDossier',
+            'matricule': 'matricule',
+            'nom': 'nom',
+            'prénom': 'prenom', 'prenom': 'prenom',
+            'catégorie': 'categorie', 'categorie': 'categorie',
+            'part ce': 'partCE', 'partce': 'partCE', 'part cse': 'partCE',
+            'date création': 'dateCreation', 'datecréation': 'dateCreation', 'datecreation': 'dateCreation', 'date creation': 'dateCreation',
+            'créateur': 'createur', 'createur': 'createur'
+        };
+        return map[name.toLowerCase().trim()] || name;
+    }
+
+    function processData(json, filename) {
+        RAW_DATA = {};
+        dataStore.loadedYears.clear();
+        dataStore.aggregated = [];
+        
+        json.forEach(row => {
+            const normalized = {};
+            Object.keys(row).forEach(key => {
+                normalized[normalizeColumnName(key)] = row[key];
+            });
+            
+            const year = parseInt(normalized.annee);
+            if (!year || isNaN(year)) return;
+            
+            if (!RAW_DATA[year]) RAW_DATA[year] = [];
+            RAW_DATA[year].push({
+                prestation: normalized.prestation || '',
+                dateDossier: excelDateToJS(normalized.dateDossier),
+                matricule: normalized.matricule,
+                nom: (normalized.nom || '').toString().toUpperCase(),
+                prenom: normalized.prenom || '',
+                categorie: parseInt(normalized.categorie) || 1,
+                partCE: parseFloat(normalized.partCE) || 0,
+                dateCreation: excelDateToJS(normalized.dateCreation),
+                createur: normalized.createur || ''
+            });
+        });
+        
+        if (Object.keys(RAW_DATA).length === 0) {
+            document.getElementById('processing').classList.remove('visible');
+            showError('Aucune donnée valide trouvée dans le fichier');
+            return;
+        }
+        
+        document.getElementById('fileInfo').textContent = `Fichier : ${filename}`;
+        
+        initData();
+        
+        document.getElementById('uploadContainer').classList.add('hidden');
+        document.getElementById('appContainer').classList.add('visible');
+        document.getElementById('processing').classList.remove('visible');
+    }
+
+    function downloadTemplate() {
+        const wb = XLSX.utils.book_new();
+        const data = [
+            ['Année', 'Prestation', 'Date Dossier', 'Matricule', 'Nom', 'Prénom', 'Catégorie', 'Part CE', 'Date Création', 'Créateur'],
+            [2024, 'Chèques Vacances', '15/03/2024', 100234, 'DUPONT', 'Marie', 2, 450, '15/03/2024', 'Admin'],
+            [2024, 'Noël Enfants', '01/12/2024', 100234, 'DUPONT', 'Marie', 2, 50, '01/12/2024', 'Admin'],
+            [2024, 'Chèques Vacances', '20/03/2024', 100567, 'MARTIN', 'Pierre', 1, 380, '20/03/2024', 'Admin'],
+            [2023, 'Fête des Mères', '10/05/2023', 100567, 'MARTIN', 'Pierre', 1, 30, '10/05/2023', 'Admin']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [
+            {wch: 8}, {wch: 20}, {wch: 12}, {wch: 10}, {wch: 15}, {wch: 12}, {wch: 10}, {wch: 10}, {wch: 12}, {wch: 12}
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Données CSE');
+        XLSX.writeFile(wb, 'template_cse.xlsx');
+    }
+
+    function resetApp() {
+        RAW_DATA = {};
+        dataStore.aggregated = [];
+        dataStore.loadedYears.clear();
+        dataStore.currentFilter = 'all';
+        dataStore.allExpanded = false;
+        Object.values(dataStore.globalCharts).forEach(c => c.destroy());
+        Object.values(dataStore.miniCharts).forEach(c => c.destroy());
+        dataStore.globalCharts = {};
+        dataStore.miniCharts = {};
+        
+        document.getElementById('appContainer').classList.remove('visible');
+        document.getElementById('uploadContainer').classList.remove('hidden');
+        document.getElementById('fileInput').value = '';
+        hideError();
+    }
+    // Dashboard Functions
+    function initData() {
+        const map = new Map();
+        Object.entries(RAW_DATA).forEach(([year, rows]) => {
+            const yr = parseInt(year);
+            dataStore.loadedYears.add(yr);
+            rows.forEach(row => {
+                const key = row.matricule;
+                if (!map.has(key)) {
+                    map.set(key, {
+                        matricule: row.matricule,
+                        nom: row.nom,
+                        prenom: row.prenom,
+                        categorie: row.categorie,
+                        yearData: {},
+                        partCEGlobale: 0,
+                        partCEPonderee: 0,
+                        nbPrestations: 0,
+                        years: new Set()
+                    });
+                }
+                const ind = map.get(key);
+                ind.years.add(yr);
+                if (!ind.yearData[yr]) ind.yearData[yr] = { prestations: [], subtotal: 0, byPrestation: {}, countByPrestation: {} };
+                ind.yearData[yr].prestations.push({
+                    prestation: row.prestation,
+                    dateDossier: row.dateDossier,
+                    partCE: row.partCE,
+                    dateCreation: row.dateCreation,
+                    createur: row.createur
+                });
+                const pName = row.prestation || 'Non défini';
+                ind.yearData[yr].byPrestation[pName] = (ind.yearData[yr].byPrestation[pName]||0) + row.partCE;
+                ind.yearData[yr].countByPrestation[pName] = (ind.yearData[yr].countByPrestation[pName]||0) + 1;
+                ind.yearData[yr].subtotal += row.partCE;
+                ind.partCEGlobale += row.partCE;
+                ind.partCEPonderee += row.partCE * (CONFIG.WEIGHT_MAP[yr]||1);
+                ind.nbPrestations++;
+            });
+        });
+        dataStore.aggregated = Array.from(map.values());
+        updateDataInfo();
+        updateYearTabs();
+        updateColumnVisibility();
+        renderTable();
+        updateStats();
+        renderGlobalCharts();
+    }
+
+    function updateDataInfo() {
+        const info = document.getElementById('dataInfo');
+        info.innerHTML = '';
+        const years = Array.from(dataStore.loadedYears).sort();
+        const colors = { 2023: '#f0883e', 2024: '#a371f7', 2025: '#3fb950', 2026: '#58a6ff' };
+        years.forEach(y => {
+            const cnt = (RAW_DATA[y]||[]).length;
+            const badge = document.createElement('span');
+            badge.className = 'data-badge';
+            badge.style.background = `${colors[y]||'#58a6ff'}30`;
+            badge.style.color = colors[y]||'#58a6ff';
+            badge.textContent = `${y}: ${cnt} lignes`;
+            info.appendChild(badge);
+        });
+    }
+
+    function updateYearTabs() {
+        const tabs = document.getElementById('yearTabs');
+        tabs.innerHTML = '';
+        const years = Array.from(dataStore.loadedYears).sort();
+        const allBtn = document.createElement('button');
+        allBtn.className = 'year-tab all active';
+        allBtn.textContent = 'Toutes';
+        allBtn.onclick = () => setFilter('all');
+        tabs.appendChild(allBtn);
+        years.forEach(y => {
+            const btn = document.createElement('button');
+            btn.className = 'year-tab';
+            btn.textContent = y;
+            btn.onclick = () => setFilter(y.toString());
+            tabs.appendChild(btn);
+        });
+    }
+
+    function setFilter(f) {
+        dataStore.currentFilter = f;
+        document.querySelectorAll('.year-tab').forEach(t => t.classList.remove('active'));
+        if (f === 'all') document.querySelector('.year-tab.all').classList.add('active');
+        else document.querySelectorAll('.year-tab').forEach(t => { if(t.textContent === f) t.classList.add('active'); });
+        updateColumnVisibility();
+        renderTable();
+        updateStats();
+    }
+
+    function updateColumnVisibility() {
+        const isAll = dataStore.currentFilter === 'all';
+        document.getElementById('colPartPonderee').classList.toggle('col-hidden', !isAll);
+        document.getElementById('statPondereCard').classList.toggle('hidden', !isAll);
+        document.getElementById('statPartCELabel').textContent = isAll ? 'Part CSE Globale' : `Part CSE ${dataStore.currentFilter}`;
+    }
+
+    function updateStats() {
+        const data = getFilteredData();
+        const isAll = dataStore.currentFilter === 'all';
+        document.getElementById('statBeneficiaires').textContent = data.length;
+        let totalP = 0, totalCE = 0, totalPond = 0;
+        data.forEach(i => {
+            if (isAll) { totalP += i.nbPrestations; totalCE += i.partCEGlobale; totalPond += i.partCEPonderee; }
+            else { const yd = i.yearData[parseInt(dataStore.currentFilter)]; if (yd) { totalP += yd.prestations.length; totalCE += yd.subtotal; } }
+        });
+        document.getElementById('statPrestations').textContent = totalP;
+        document.getElementById('statPartCE').textContent = formatCurrency(totalCE);
+        if (isAll) document.getElementById('statPondere').textContent = formatCurrency(totalPond);
+    }
+
+    function getFilteredData() {
+        const yf = dataStore.currentFilter;
+        const search = document.getElementById('searchInput').value.toLowerCase().trim();
+        let data = dataStore.aggregated;
+        if (yf !== 'all') data = data.filter(i => i.years.has(parseInt(yf)));
+        if (search) {
+            data = data.filter(i => {
+                if (i.nom.toLowerCase().includes(search)) return true;
+                if (i.prenom.toLowerCase().includes(search)) return true;
+                if (i.matricule.toString().includes(search)) return true;
+                for (const yd of Object.values(i.yearData)) {
+                    for (const p of yd.prestations) {
+                        if (p.prestation && p.prestation.toLowerCase().includes(search)) return true;
+                    }
+                }
+                return false;
+            });
+        }
+        const { column, direction } = dataStore.currentSort;
+        data.sort((a, b) => {
+            let vA = a[column], vB = b[column];
+            if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = (vB||'').toLowerCase(); }
+            if (vA < vB) return direction === 'asc' ? -1 : 1;
+            if (vA > vB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return data;
+    }
+
+    function setSort(col) {
+        if (dataStore.currentSort.column === col) dataStore.currentSort.direction = dataStore.currentSort.direction === 'asc' ? 'desc' : 'asc';
+        else { dataStore.currentSort.column = col; dataStore.currentSort.direction = 'asc'; }
+        document.querySelectorAll('#mainTable thead th').forEach(th => th.classList.remove('sorted-asc','sorted-desc'));
+        const th = document.querySelector(`#mainTable thead th[data-sort="${col}"]`);
+        if (th) th.classList.add(dataStore.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        renderTable();
+    }
+
+    function sortDetail(matricule, year, col, tableId) {
+        const key = `${matricule}-${year}`;
+        if (!dataStore.detailSorts[key]) dataStore.detailSorts[key] = { column: col, direction: 'asc' };
+        else if (dataStore.detailSorts[key].column === col) dataStore.detailSorts[key].direction = dataStore.detailSorts[key].direction === 'asc' ? 'desc' : 'asc';
+        else { dataStore.detailSorts[key].column = col; dataStore.detailSorts[key].direction = 'asc'; }
+        const ind = dataStore.aggregated.find(i => i.matricule === matricule);
+        if (!ind || !ind.yearData[year]) return;
+        const { column, direction } = dataStore.detailSorts[key];
+        ind.yearData[year].prestations.sort((a, b) => {
+            let vA = a[column], vB = b[column];
+            if (column === 'dateDossier' || column === 'dateCreation') { vA = vA ? new Date(vA).getTime() : 0; vB = vB ? new Date(vB).getTime() : 0; }
+            else if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = (vB||'').toLowerCase(); }
+            if (vA < vB) return direction === 'asc' ? -1 : 1;
+            if (vA > vB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        if (tbody) {
+            tbody.innerHTML = '';
+            ind.yearData[year].prestations.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="prestation-name">${p.prestation||'-'}</td><td class="mono text-muted">${formatDate(p.dateDossier)}</td><td class="amount">${formatCurrency(p.partCE)}</td><td class="mono text-muted">${formatDate(p.dateCreation)}</td><td>${p.createur||'-'}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+    function createMiniChart(canvasId, byPrestation, legendId, countByPrestation) {
+        countByPrestation = countByPrestation || {};
+        const entries = Object.entries(byPrestation).map(([n,v])=>({name:n,value:v,count:countByPrestation[n]||0})).sort((a,b)=>b.value-a.value);
+        if (!entries.length) return null;
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return null;
+        const total = entries.reduce((s,e)=>s+e.value,0);
+        const chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: entries.map(e=>e.name), datasets: [{data:entries.map(e=>e.value), backgroundColor:entries.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]), borderColor:'#0a0e14', borderWidth:2}] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: {display:false}, tooltip: { callbacks: { label: c => { const idx = c.dataIndex; const cnt = entries[idx].count; return `${formatCurrency(c.raw)} (${((c.raw/total)*100).toFixed(1)}%) — ${cnt} dossier${cnt>1?'s':''}`; } }} } }
+        });
+        if (legendId) {
+            const lc = document.getElementById(legendId);
+            if (lc) { lc.innerHTML = ''; entries.slice(0,8).forEach((e,i) => { const pct = ((e.value/total)*100).toFixed(1); const div = document.createElement('div'); div.className = 'legend-item'; div.innerHTML = `<span class="legend-color" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-label" title="${e.name}">${e.name}</span><span class="legend-value">${pct}% <span style="color:var(--accent-cyan);font-size:0.6rem;">(${e.count})</span></span>`; lc.appendChild(div); }); }
+        }
+        return chart;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        const data = getFilteredData();
+        const yf = dataStore.currentFilter;
+        const isAll = yf === 'all';
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun résultat</p></div></td></tr>`; return; }
+        tbody.innerHTML = '';
+        Object.values(dataStore.miniCharts).forEach(c => c.destroy());
+        dataStore.miniCharts = {};
+        const years = Array.from(dataStore.loadedYears).sort();
+        const colors = { 2023: '#f0883e', 2024: '#a371f7', 2025: '#3fb950', 2026: '#58a6ff' };
+        
+        data.forEach((ind, idx) => {
+            let dispCE = ind.partCEGlobale, dispPond = ind.partCEPonderee, dispNb = ind.nbPrestations;
+            if (!isAll) { const yd = ind.yearData[parseInt(yf)]; if (yd) { dispCE = yd.subtotal; dispNb = yd.prestations.length; } else { dispCE = 0; dispNb = 0; } }
+            const mainRow = document.createElement('tr');
+            mainRow.className = 'main-row';
+            const yearsHtml = years.map(y=>`<span class="year-dot ${ind.years.has(y)?'active':''}" style="${ind.years.has(y)?`background:${colors[y]};color:${colors[y]}`:''};"></span>`).join('');
+            mainRow.innerHTML = `<td class="expand-cell"><span class="expand-icon">▶</span></td><td class="name-cell">${ind.nom}</td><td>${ind.prenom}</td><td class="mono text-muted">${ind.matricule}</td><td><span class="cat-badge cat-${ind.categorie}">${ind.categorie}</span></td><td class="amount">${formatCurrency(dispCE)}</td><td class="amount amount-weighted ${isAll?'':'col-hidden'}">${formatCurrency(dispPond)}</td><td class="mono">${dispNb}</td><td><div class="year-dots">${yearsHtml}</div></td>`;
+            const detailsRow = document.createElement('tr');
+            detailsRow.className = 'details-row';
+            let detailsHtml = '<td colspan="9"><div class="details-wrapper">';
+            let yearsToShow = Array.from(ind.years).sort();
+            if (!isAll) yearsToShow = yearsToShow.filter(y => y===parseInt(yf));
+            yearsToShow.forEach(year => {
+                const yd = ind.yearData[year];
+                if (!yd) return;
+                const tblId = `dtbl-${ind.matricule}-${year}-${idx}`;
+                const chartId = `dchart-${ind.matricule}-${year}-${idx}`;
+                const legendId = `dleg-${ind.matricule}-${year}-${idx}`;
+                const nbDossiers = yd.prestations.length;
+                const yearColor = colors[year] || '#58a6ff';
+                detailsHtml += `<div class="year-group"><div class="year-group-header"><span class="year-label" style="background:${yearColor}30;color:${yearColor}">${year}</span><span class="year-weight">Pond: ${(CONFIG.WEIGHT_MAP[year]||1)*100}%</span><span style="color:var(--accent-cyan);font-size:0.8rem;">📁 ${nbDossiers} dossier${nbDossiers>1?'s':''}</span><span class="year-subtotal">${formatCurrency(yd.subtotal)}</span></div><div class="year-group-content"><div class="year-table-wrapper"><table class="details-table" id="${tblId}"><thead><tr><th data-col="prestation" onclick="sortDetail('${ind.matricule}',${year},'prestation','${tblId}')">Prestation</th><th data-col="dateDossier" onclick="sortDetail('${ind.matricule}',${year},'dateDossier','${tblId}')">Date</th><th data-col="partCE" onclick="sortDetail('${ind.matricule}',${year},'partCE','${tblId}')">Part CE</th><th data-col="dateCreation" onclick="sortDetail('${ind.matricule}',${year},'dateCreation','${tblId}')">Création</th><th data-col="createur" onclick="sortDetail('${ind.matricule}',${year},'createur','${tblId}')">Créateur</th></tr></thead><tbody>`;
+                yd.prestations.forEach(p => { detailsHtml += `<tr><td class="prestation-name">${p.prestation||'-'}</td><td class="mono text-muted">${formatDate(p.dateDossier)}</td><td class="amount">${formatCurrency(p.partCE)}</td><td class="mono text-muted">${formatDate(p.dateCreation)}</td><td>${p.createur||'-'}</td></tr>`; });
+                detailsHtml += `</tbody></table></div><div class="year-chart-wrapper"><div class="chart-title">Répartition (${nbDossiers} dossier${nbDossiers>1?'s':''})</div><div class="chart-container"><canvas id="${chartId}"></canvas></div><div class="chart-legend" id="${legendId}"></div></div></div></div>`;
+            });
+            detailsHtml += '</div></td>';
+            detailsRow.innerHTML = detailsHtml;
+            mainRow.onclick = () => {
+                const wasExp = mainRow.classList.contains('expanded');
+                mainRow.classList.toggle('expanded');
+                detailsRow.classList.toggle('visible');
+                if (!wasExp) { setTimeout(() => { yearsToShow.forEach(year => { const yd = ind.yearData[year]; if (yd) { const cid = `dchart-${ind.matricule}-${year}-${idx}`; const lid = `dleg-${ind.matricule}-${year}-${idx}`; if (!dataStore.miniCharts[cid]) { const ch = createMiniChart(cid, yd.byPrestation, lid, yd.countByPrestation); if (ch) dataStore.miniCharts[cid] = ch; } } }); }, 50); }
+            };
+            tbody.appendChild(mainRow);
+            tbody.appendChild(detailsRow);
+        });
+    }
+
+    function renderGlobalCharts() {
+        const grid = document.getElementById('chartsGrid');
+        grid.innerHTML = '';
+        Object.values(dataStore.globalCharts).forEach(c => c.destroy());
+        dataStore.globalCharts = {};
+        const colors = { 2023: '#f0883e', 2024: '#a371f7', 2025: '#3fb950', 2026: '#58a6ff' };
+        Array.from(dataStore.loadedYears).sort().forEach(year => {
+            const totals = {};
+            const counts = {};
+            (RAW_DATA[year]||[]).forEach(r => { const n = r.prestation||'Non défini'; totals[n] = (totals[n]||0) + (r.partCE||0); counts[n] = (counts[n]||0) + 1; });
+            const pData = Object.entries(totals).map(([n,v])=>({name:n,value:v,count:counts[n]||0})).sort((a,b)=>b.value-a.value);
+            if (!pData.length) return;
+            const total = pData.reduce((s,p)=>s+p.value,0);
+            const totalDossiers = pData.reduce((s,p)=>s+p.count,0);
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            const cid = `gchart-${year}`;
+            const lid = `gleg-${year}`;
+            const yearColor = colors[year] || '#58a6ff';
+            card.innerHTML = `<div class="chart-card-title"><span class="year-label" style="background:${yearColor}30;color:${yearColor}">${year}</span><span style="color:var(--text-muted);font-size:0.85rem;">— ${formatCurrency(total)}</span><span style="color:var(--accent-cyan);font-size:0.8rem;margin-left:0.5rem;">📁 ${totalDossiers} dossiers</span></div><div class="chart-card-container"><canvas id="${cid}"></canvas></div><div class="chart-card-legend" id="${lid}"></div>`;
+            grid.appendChild(card);
+            const ctx = document.getElementById(cid).getContext('2d');
+            dataStore.globalCharts[year] = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: pData.map(p=>p.name), datasets: [{data:pData.map(p=>p.value), backgroundColor:pData.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]), borderColor:'#0a0e14', borderWidth:2}] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: {display:false}, tooltip: {callbacks:{label:c=>{ const idx = c.dataIndex; const cnt = pData[idx].count; return `${formatCurrency(c.raw)} (${((c.raw/total)*100).toFixed(1)}%) — ${cnt} dossier${cnt>1?'s':''}`; }}} } }
+            });
+            const lc = document.getElementById(lid);
+            pData.forEach((p,i) => { const pct = ((p.value/total)*100).toFixed(1); const div = document.createElement('div'); div.className = 'legend-item'; div.innerHTML = `<span class="legend-color" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-label" title="${p.name}">${p.name}</span><span class="legend-value">${pct}% <span style="color:var(--accent-cyan);font-size:0.6rem;">(${p.count})</span></span>`; lc.appendChild(div); });
+        });
+    }
+
+    function exportCSV() {
+        const data = getFilteredData();
+        if (!data.length) { alert('Aucune donnée'); return; }
+        const isAll = dataStore.currentFilter === 'all';
+        let csv = isAll ? 'Nom;Prénom;Matricule;Catégorie;Part CSE Globale;Part CSE Pondérée;Nb Prestations;Années\n' : 'Nom;Prénom;Matricule;Catégorie;Part CSE;Nb Prestations\n';
+        data.forEach(i => {
+            if (isAll) csv += `"${i.nom}";"${i.prenom}";${i.matricule};${i.categorie};${i.partCEGlobale.toFixed(2)};${i.partCEPonderee.toFixed(2)};${i.nbPrestations};"${Array.from(i.years).sort().join('|')}"\n`;
+            else { const yd = i.yearData[parseInt(dataStore.currentFilter)]; if (yd) csv += `"${i.nom}";"${i.prenom}";${i.matricule};${i.categorie};${yd.subtotal.toFixed(2)};${yd.prestations.length}\n`; }
+        });
+        const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `export_cse_${dataStore.currentFilter}_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        setupUpload();
+        document.getElementById('searchInput').addEventListener('input', () => { renderTable(); updateStats(); });
+        document.querySelectorAll('#mainTable>thead th[data-sort]').forEach(th => th.addEventListener('click', () => setSort(th.dataset.sort)));
+        document.getElementById('btnExpand').addEventListener('click', () => {
+            dataStore.allExpanded = !dataStore.allExpanded;
+            document.getElementById('btnExpand').textContent = dataStore.allExpanded ? '▼ Replier' : '▶ Tout déplier';
+            const fd = getFilteredData();
+            document.querySelectorAll('.main-row').forEach((row, idx) => {
+                const dr = row.nextElementSibling;
+                const wasExp = row.classList.contains('expanded');
+                row.classList.toggle('expanded', dataStore.allExpanded);
+                dr.classList.toggle('visible', dataStore.allExpanded);
+                if (dataStore.allExpanded && !wasExp) {
+                    const ind = fd[idx];
+                    if (ind) { setTimeout(() => { let yrs = Array.from(ind.years); if (dataStore.currentFilter !== 'all') yrs = yrs.filter(y => y===parseInt(dataStore.currentFilter)); yrs.forEach(year => { const yd = ind.yearData[year]; if (yd) { const cid = `dchart-${ind.matricule}-${year}-${idx}`; const lid = `dleg-${ind.matricule}-${year}-${idx}`; if (!dataStore.miniCharts[cid]) { const ch = createMiniChart(cid, yd.byPrestation, lid, yd.countByPrestation); if (ch) dataStore.miniCharts[cid] = ch; } } }); }, 50); }
+                }
+            });
+        });
+        document.getElementById('btnExport').addEventListener('click', exportCSV);
+    });
+    </script>
+</body>
+</html>
