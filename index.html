@@ -348,6 +348,224 @@
         }
         .github-link { position: fixed; bottom: 1rem; right: 1rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-secondary); font-size: 0.8rem; text-decoration: none; transition: all 0.2s; }
         .github-link:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+        /* Chart Zoom Modal */
+        .chart-zoom-hint {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 0.35rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .year-chart-wrapper:hover .chart-zoom-hint,
+        .chart-card:hover .chart-zoom-hint { opacity: 1; }
+        .chart-clickable {
+            cursor: zoom-in;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 8px;
+        }
+        .chart-clickable:hover { transform: scale(1.03); box-shadow: 0 0 20px rgba(88,166,255,0.25); }
+        .chart-card { cursor: zoom-in; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+        .chart-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 30px rgba(88,166,255,0.15); border-color: var(--accent-primary); }
+
+        /* Fullscreen Modal */
+        .chart-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 8, 13, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .chart-modal-backdrop.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .chart-modal {
+            background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+            border: 1px solid var(--border-default);
+            border-radius: 24px;
+            padding: 2rem;
+            width: min(90vw, 860px);
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.7), 0 0 60px rgba(88,166,255,0.12);
+            position: relative;
+            transform: scale(0.92) translateY(20px);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .chart-modal-backdrop.open .chart-modal {
+            transform: scale(1) translateY(0);
+        }
+        .chart-modal::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 24px 24px 0 0;
+            background: linear-gradient(90deg, #f0883e, #a371f7, #3fb950, #58a6ff);
+        }
+        .chart-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.75rem;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .chart-modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .chart-modal-meta {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .chart-modal-close {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid var(--border-default);
+            background: var(--bg-deep);
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .chart-modal-close:hover {
+            background: var(--accent-danger);
+            border-color: var(--accent-danger);
+            color: white;
+            transform: rotate(90deg);
+        }
+        .chart-modal-body {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .chart-modal-canvas-wrap {
+            flex: 0 0 auto;
+            width: min(360px, 100%);
+            margin: 0 auto;
+        }
+        .chart-modal-legend-wrap {
+            flex: 1;
+            min-width: 220px;
+        }
+        .chart-modal-legend-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+        .chart-modal-legend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+        .chart-modal-legend-list::-webkit-scrollbar { width: 4px; }
+        .chart-modal-legend-list::-webkit-scrollbar-track { background: var(--bg-deep); border-radius: 4px; }
+        .chart-modal-legend-list::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+        .modal-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.65rem;
+            border-radius: 8px;
+            background: var(--bg-deep);
+            border: 1px solid transparent;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .modal-legend-item:hover { border-color: var(--border-default); background: var(--bg-hover); }
+        .modal-legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .modal-legend-name {
+            flex: 1;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .modal-legend-pct {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--accent-success);
+        }
+        .modal-legend-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--accent-cyan);
+            background: rgba(57,197,207,0.1);
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+        }
+        .modal-legend-amount {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .chart-modal-footer {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .modal-stat-item {
+            text-align: center;
+        }
+        .modal-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+        .modal-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.2rem;
+        }
+        @media (max-width: 600px) {
+            .chart-modal { padding: 1.25rem; }
+            .chart-modal-body { flex-direction: column; }
+            .chart-modal-canvas-wrap { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -563,6 +781,30 @@
             <div class="charts-header"><h2 class="charts-title">📈 Répartition par Prestation et par Année</h2></div>
             <div class="charts-grid" id="chartsGrid"></div>
         </section>
+    </div>
+
+    <!-- Chart Zoom Modal -->
+    <div class="chart-modal-backdrop" id="chartModal" role="dialog" aria-modal="true" aria-label="Graphique en plein écran">
+        <div class="chart-modal" id="chartModalInner">
+            <div class="chart-modal-header">
+                <div class="chart-modal-title">
+                    <span id="modalYearBadge" class="year-label"></span>
+                    <span id="modalTitle">Répartition des prestations</span>
+                </div>
+                <div class="chart-modal-meta" id="modalMeta"></div>
+                <button class="chart-modal-close" id="chartModalClose" title="Fermer (Échap)">✕</button>
+            </div>
+            <div class="chart-modal-body">
+                <div class="chart-modal-canvas-wrap">
+                    <canvas id="modalChartCanvas"></canvas>
+                </div>
+                <div class="chart-modal-legend-wrap">
+                    <div class="chart-modal-legend-title">Détail des prestations</div>
+                    <div class="chart-modal-legend-list" id="modalLegendList"></div>
+                </div>
+            </div>
+            <div class="chart-modal-footer" id="modalFooter"></div>
+        </div>
     </div>
 
     <a href="https://github.com" target="_blank" class="github-link" id="githubLink" style="display:none;">
@@ -1071,7 +1313,7 @@
                 const yearColor = colors[year] || '#58a6ff';
                 detailsHtml += `<div class="year-group"><div class="year-group-header"><span class="year-label" style="background:${yearColor}30;color:${yearColor}">${year}</span><span class="year-weight">Pond: ${(CONFIG.WEIGHT_MAP[year]||1)*100}%</span><span style="color:var(--accent-cyan);font-size:0.8rem;">📁 ${nbDossiers} dossier${nbDossiers>1?'s':''}</span><span class="year-subtotal">${formatCurrency(yd.subtotal)}</span></div><div class="year-group-content"><div class="year-table-wrapper"><table class="details-table" id="${tblId}"><thead><tr><th data-col="prestation" onclick="sortDetail('${ind.matricule}',${year},'prestation','${tblId}')">Prestation</th><th data-col="dateDossier" onclick="sortDetail('${ind.matricule}',${year},'dateDossier','${tblId}')">Date</th><th data-col="partCE" onclick="sortDetail('${ind.matricule}',${year},'partCE','${tblId}')">Part CE</th><th data-col="dateCreation" onclick="sortDetail('${ind.matricule}',${year},'dateCreation','${tblId}')">Création</th><th data-col="createur" onclick="sortDetail('${ind.matricule}',${year},'createur','${tblId}')">Créateur</th></tr></thead><tbody>`;
                 yd.prestations.forEach(p => { detailsHtml += `<tr><td class="prestation-name">${p.prestation||'-'}</td><td class="mono text-muted">${formatDate(p.dateDossier)}</td><td class="amount">${formatCurrency(p.partCE)}</td><td class="mono text-muted">${formatDate(p.dateCreation)}</td><td>${p.createur||'-'}</td></tr>`; });
-                detailsHtml += `</tbody></table></div><div class="year-chart-wrapper"><div class="chart-title">Répartition (${nbDossiers} dossier${nbDossiers>1?'s':''})</div><div class="chart-container"><canvas id="${chartId}"></canvas></div><div class="chart-legend" id="${legendId}"></div></div></div></div>`;
+                detailsHtml += `</tbody></table></div><div class="year-chart-wrapper chart-clickable" data-chartid="${chartId}" data-year="${year}" data-yearcolor="${yearColor}" data-matricule="${ind.matricule}" data-nom="${ind.nom}" data-prenom="${ind.prenom}"><div class="chart-title">Répartition (${nbDossiers} dossier${nbDossiers>1?'s':''})</div><div class="chart-container"><canvas id="${chartId}"></canvas></div><div class="chart-legend" id="${legendId}"></div><div class="chart-zoom-hint">🔍 Cliquer pour agrandir</div></div></div></div>`;
             });
             detailsHtml += '</div></td>';
             detailsRow.innerHTML = detailsHtml;
@@ -1079,7 +1321,42 @@
                 const wasExp = mainRow.classList.contains('expanded');
                 mainRow.classList.toggle('expanded');
                 detailsRow.classList.toggle('visible');
-                if (!wasExp) { setTimeout(() => { yearsToShow.forEach(year => { const yd = ind.yearData[year]; if (yd) { const cid = `dchart-${ind.matricule}-${year}-${idx}`; const lid = `dleg-${ind.matricule}-${year}-${idx}`; if (!dataStore.miniCharts[cid]) { const ch = createMiniChart(cid, yd.byPrestation, lid, yd.countByPrestation); if (ch) dataStore.miniCharts[cid] = ch; } } }); }, 50); }
+                if (!wasExp) {
+                    setTimeout(() => {
+                        yearsToShow.forEach(year => {
+                            const yd = ind.yearData[year];
+                            if (yd) {
+                                const cid = `dchart-${ind.matricule}-${year}-${idx}`;
+                                const lid = `dleg-${ind.matricule}-${year}-${idx}`;
+                                if (!dataStore.miniCharts[cid]) {
+                                    const ch = createMiniChart(cid, yd.byPrestation, lid, yd.countByPrestation);
+                                    if (ch) dataStore.miniCharts[cid] = ch;
+                                }
+                                // Attach zoom click to wrapper
+                                const wrapper = detailsRow.querySelector(`[data-chartid="${cid}"]`);
+                                if (wrapper && !wrapper._zoomBound) {
+                                    wrapper._zoomBound = true;
+                                    wrapper.addEventListener('click', e => {
+                                        e.stopPropagation();
+                                        const entries = Object.entries(yd.byPrestation)
+                                            .map(([n,v]) => ({ name: n, value: v, count: yd.countByPrestation[n] || 0 }))
+                                            .sort((a,b) => b.value - a.value);
+                                        const total = entries.reduce((s,e) => s + e.value, 0);
+                                        const colors = { 2023: '#f0883e', 2024: '#a371f7', 2025: '#3fb950', 2026: '#58a6ff' };
+                                        openChartModal({
+                                            title: `${ind.prenom} ${ind.nom}`,
+                                            year,
+                                            yearColor: colors[year] || '#58a6ff',
+                                            pData: entries,
+                                            total,
+                                            totalDossiers: yd.prestations.length
+                                        });
+                                    });
+                                }
+                            }
+                        });
+                    }, 50);
+                }
             };
             tbody.appendChild(mainRow);
             tbody.appendChild(detailsRow);
@@ -1105,8 +1382,11 @@
             const cid = `gchart-${year}`;
             const lid = `gleg-${year}`;
             const yearColor = colors[year] || '#58a6ff';
-            card.innerHTML = `<div class="chart-card-title"><span class="year-label" style="background:${yearColor}30;color:${yearColor}">${year}</span><span style="color:var(--text-muted);font-size:0.85rem;">— ${formatCurrency(total)}</span><span style="color:var(--accent-cyan);font-size:0.8rem;margin-left:0.5rem;">📁 ${totalDossiers} dossiers</span></div><div class="chart-card-container"><canvas id="${cid}"></canvas></div><div class="chart-card-legend" id="${lid}"></div>`;
+            card.innerHTML = `<div class="chart-card-title"><span class="year-label" style="background:${yearColor}30;color:${yearColor}">${year}</span><span style="color:var(--text-muted);font-size:0.85rem;">— ${formatCurrency(total)}</span><span style="color:var(--accent-cyan);font-size:0.8rem;margin-left:0.5rem;">📁 ${totalDossiers} dossiers</span></div><div class="chart-card-container chart-clickable" id="wrap-${cid}"><canvas id="${cid}"></canvas></div><div class="chart-zoom-hint">🔍 Cliquer pour agrandir</div><div class="chart-card-legend" id="${lid}"></div>`;
             grid.appendChild(card);
+            // Click to zoom — attached after canvas is in DOM
+            const clickPayload = { year, yearColor, pData, total, totalDossiers, title: `Répartition ${year}` };
+            card.addEventListener('click', () => openChartModal(clickPayload));
             const ctx = document.getElementById(cid).getContext('2d');
             dataStore.globalCharts[year] = new Chart(ctx, {
                 type: 'doughnut',
@@ -1134,8 +1414,116 @@
         link.click();
     }
 
+    // ─── Chart Zoom Modal ──────────────────────────────────────────────────────
+    let modalChart = null;
+
+    function openChartModal({ title, year, yearColor, pData, total, totalDossiers }) {
+        const backdrop = document.getElementById('chartModal');
+        const yearBadge = document.getElementById('modalYearBadge');
+        const titleEl = document.getElementById('modalTitle');
+        const metaEl = document.getElementById('modalMeta');
+        const legendList = document.getElementById('modalLegendList');
+        const footer = document.getElementById('modalFooter');
+
+        // Header
+        yearBadge.textContent = year;
+        yearBadge.style.background = yearColor + '30';
+        yearBadge.style.color = yearColor;
+        titleEl.textContent = title || 'Répartition des prestations';
+
+        metaEl.innerHTML = `
+            <span style="color:var(--text-muted);font-size:0.85rem;">${formatCurrency(total)}</span>
+            <span style="color:var(--accent-cyan);font-size:0.8rem;">📁 ${totalDossiers} dossier${totalDossiers > 1 ? 's' : ''}</span>`;
+
+        // Destroy previous modal chart
+        if (modalChart) { modalChart.destroy(); modalChart = null; }
+
+        // Create new chart
+        const canvas = document.getElementById('modalChartCanvas');
+        const ctx = canvas.getContext('2d');
+        modalChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: pData.map(p => p.name),
+                datasets: [{
+                    data: pData.map(p => p.value),
+                    backgroundColor: pData.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+                    borderColor: '#0a0e14',
+                    borderWidth: 3,
+                    hoverOffset: 12
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                animation: { duration: 600, easing: 'easeOutQuart' },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: c => {
+                                const d = pData[c.dataIndex];
+                                return `${formatCurrency(c.raw)} (${((c.raw / total) * 100).toFixed(1)}%) — ${d.count} dossier${d.count > 1 ? 's' : ''}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Legend
+        legendList.innerHTML = '';
+        pData.forEach((p, i) => {
+            const pct = ((p.value / total) * 100).toFixed(1);
+            const color = CHART_COLORS[i % CHART_COLORS.length];
+            const item = document.createElement('div');
+            item.className = 'modal-legend-item';
+            item.innerHTML = `
+                <span class="modal-legend-dot" style="background:${color}"></span>
+                <span class="modal-legend-name" title="${p.name}">${p.name}</span>
+                <span class="modal-legend-amount">${formatCurrency(p.value)}</span>
+                <span class="modal-legend-pct">${pct}%</span>
+                <span class="modal-legend-count">${p.count}</span>`;
+            legendList.appendChild(item);
+        });
+
+        // Footer stats
+        const top = pData[0];
+        footer.innerHTML = `
+            <div class="modal-stat-item">
+                <div class="modal-stat-value">${pData.length}</div>
+                <div class="modal-stat-label">Types de prestations</div>
+            </div>
+            <div class="modal-stat-item">
+                <div class="modal-stat-value">${formatCurrency(total)}</div>
+                <div class="modal-stat-label">Total Part CSE</div>
+            </div>
+            <div class="modal-stat-item">
+                <div class="modal-stat-value">${totalDossiers}</div>
+                <div class="modal-stat-label">Dossiers</div>
+            </div>
+            <div class="modal-stat-item">
+                <div class="modal-stat-value" style="font-size:0.85rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${top.name}">${top.name}</div>
+                <div class="modal-stat-label">1ère prestation</div>
+            </div>`;
+
+        backdrop.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeChartModal() {
+        document.getElementById('chartModal').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+        // Modal close handlers
+        document.getElementById('chartModalClose').addEventListener('click', closeChartModal);
+        document.getElementById('chartModal').addEventListener('click', e => {
+            if (e.target === document.getElementById('chartModal')) closeChartModal();
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeChartModal(); });
         setupUpload();
         document.getElementById('searchInput').addEventListener('input', () => { renderTable(); updateStats(); });
         document.querySelectorAll('#mainTable>thead th[data-sort]').forEach(th => th.addEventListener('click', () => setSort(th.dataset.sort)));
@@ -1149,8 +1537,43 @@
                 row.classList.toggle('expanded', dataStore.allExpanded);
                 dr.classList.toggle('visible', dataStore.allExpanded);
                 if (dataStore.allExpanded && !wasExp) {
-                    const ind = fd[idx];
-                    if (ind) { setTimeout(() => { let yrs = Array.from(ind.years); if (dataStore.currentFilter !== 'all') yrs = yrs.filter(y => y===parseInt(dataStore.currentFilter)); yrs.forEach(year => { const yd = ind.yearData[year]; if (yd) { const cid = `dchart-${ind.matricule}-${year}-${idx}`; const lid = `dleg-${ind.matricule}-${year}-${idx}`; if (!dataStore.miniCharts[cid]) { const ch = createMiniChart(cid, yd.byPrestation, lid, yd.countByPrestation); if (ch) dataStore.miniCharts[cid] = ch; } } }); }, 50); }
+                    if (ind) {
+                        setTimeout(() => {
+                            let yrs = Array.from(ind.years);
+                            if (dataStore.currentFilter !== 'all') yrs = yrs.filter(y => y===parseInt(dataStore.currentFilter));
+                            const rowColors = { 2023: '#f0883e', 2024: '#a371f7', 2025: '#3fb950', 2026: '#58a6ff' };
+                            yrs.forEach(year => {
+                                const yd = ind.yearData[year];
+                                if (yd) {
+                                    const cid = `dchart-${ind.matricule}-${year}-${idx}`;
+                                    const lid = `dleg-${ind.matricule}-${year}-${idx}`;
+                                    if (!dataStore.miniCharts[cid]) {
+                                        const ch = createMiniChart(cid, yd.byPrestation, lid, yd.countByPrestation);
+                                        if (ch) dataStore.miniCharts[cid] = ch;
+                                    }
+                                    const wrapper = dr.querySelector(`[data-chartid="${cid}"]`);
+                                    if (wrapper && !wrapper._zoomBound) {
+                                        wrapper._zoomBound = true;
+                                        wrapper.addEventListener('click', e => {
+                                            e.stopPropagation();
+                                            const entries = Object.entries(yd.byPrestation)
+                                                .map(([n,v]) => ({ name: n, value: v, count: yd.countByPrestation[n] || 0 }))
+                                                .sort((a,b) => b.value - a.value);
+                                            const total = entries.reduce((s,e) => s + e.value, 0);
+                                            openChartModal({
+                                                title: `${ind.prenom} ${ind.nom}`,
+                                                year,
+                                                yearColor: rowColors[year] || '#58a6ff',
+                                                pData: entries,
+                                                total,
+                                                totalDossiers: yd.prestations.length
+                                            });
+                                        });
+                                    }
+                                }
+                            });
+                        }, 50);
+                    }
                 }
             });
         });
