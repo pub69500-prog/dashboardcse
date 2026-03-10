@@ -253,6 +253,8 @@
         .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent-success); }
         .stat-card.highlight .stat-value { color: var(--accent-primary); }
         .stat-card.special .stat-value { background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .stat-card.retenir .stat-value { background: linear-gradient(135deg, #f0883e, #d29922); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .retenir-badge { display: inline-block; padding: 0.1rem 0.4rem; background: rgba(240,136,62,0.15); color: #f0883e; border-radius: 4px; font-size: 0.65rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; vertical-align: middle; margin-left: 0.3rem; }
         .stat-card.hidden { display: none; }
         .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
         .controls { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; align-items: center; }
@@ -269,6 +271,7 @@
         .btn-expand { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
         .btn-expand:hover { background: var(--bg-hover); }
         .btn-export { background: var(--accent-success); color: white; }
+        .btn-export-xl { background: linear-gradient(135deg, #f0883e, #d29922); color: white; border: none; }
         .table-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg); }
         .table-scroll { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
@@ -292,6 +295,61 @@
         .amount { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--accent-success); }
         .amount-weighted { color: var(--accent-purple); }
         .amount-average { color: var(--accent-cyan); }
+        .amount-retenir { color: #f0883e; }
+
+        /* Filtre date compteur */
+        .compteur-filter {
+            background: linear-gradient(135deg, rgba(240,136,62,0.08), rgba(210,153,34,0.06));
+            border: 1px solid rgba(240,136,62,0.3);
+            border-radius: 14px;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .compteur-filter-inner {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+        }
+        .compteur-filter-icon { font-size: 1.1rem; }
+        .compteur-filter-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #f0883e;
+            white-space: nowrap;
+        }
+        .compteur-date-input {
+            padding: 0.45rem 0.85rem;
+            background: var(--bg-card);
+            border: 1px solid rgba(240,136,62,0.4);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .compteur-date-input:focus { outline: none; border-color: #f0883e; box-shadow: 0 0 0 3px rgba(240,136,62,0.15); }
+        .compteur-date-input::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+        .compteur-clear {
+            width: 26px; height: 26px;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-elevated);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            padding: 0;
+        }
+        .compteur-clear:hover { background: var(--accent-danger); border-color: var(--accent-danger); color: white; }
+        .compteur-filter-hint {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .compteur-filter-hint.active { color: #f0883e; font-style: normal; font-weight: 500; }
         .cat-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.75rem; font-weight: 600; }
         .cat-badge.cat-1 { background: rgba(88,166,255,0.15); color: var(--accent-primary); }
         .cat-badge.cat-2 { background: rgba(63,185,80,0.15); color: var(--accent-success); }
@@ -749,12 +807,23 @@
             <div class="stat-card"><div class="stat-value" id="statPrestations">0</div><div class="stat-label">Prestations</div></div>
             <div class="stat-card highlight"><div class="stat-value" id="statPartCE">0 €</div><div class="stat-label" id="statPartCELabel">Part CSE Globale</div></div>
             <div class="stat-card special" id="statPondereCard"><div class="stat-value" id="statPondere">0 €</div><div class="stat-label">Part CSE Pondérée</div></div>
+            <div class="stat-card retenir" id="statRetenirCard"><div class="stat-value" id="statRetenir">0 €</div><div class="stat-label">Compteur à retenir <span class="retenir-badge">≤ 2025</span></div></div>
         </section>
-        <div class="controls">
+        <!-- Filtre date compteur -->
+        <div class="compteur-filter" id="compteurFilter" style="display:none;">
+            <div class="compteur-filter-inner">
+                <span class="compteur-filter-icon">📅</span>
+                <span class="compteur-filter-label">Date limite du compteur à retenir</span>
+                <input type="date" id="dateFinCompteur" class="compteur-date-input" />
+                <button class="compteur-clear" id="btnClearDate" title="Réinitialiser">✕</button>
+                <span class="compteur-filter-hint" id="compteurHint"></span>
+            </div>
+        </div>
             <div class="search-box"><input type="text" class="search-input" id="searchInput" placeholder="Rechercher par nom, prénom, matricule, prestation..."></div>
             <div class="year-tabs" id="yearTabs"></div>
             <button class="btn-action btn-expand" id="btnExpand">▶ Tout déplier</button>
             <button class="btn-action btn-export" id="btnExport">📥 Export CSV</button>
+            <button class="btn-action btn-export-xl" id="btnExportXL">📊 Export Compteur Excel</button>
         </div>
         <div class="table-container">
             <div class="table-scroll">
@@ -769,6 +838,7 @@
                             <th data-sort="partCEGlobale" id="colPartCE">Part CSE</th>
                             <th data-sort="moyenneAnnuelle" id="colMoyenne">Moy./an</th>
                             <th data-sort="partCEPonderee" id="colPartPonderee">Part CSE Pond.</th>
+                            <th data-sort="compteurRetenir" id="colRetenir">Compteur à retenir</th>
                             <th data-sort="nbPrestations">Nb</th>
                             <th class="no-sort">Années</th>
                         </tr>
@@ -836,7 +906,8 @@
         allExpanded: false,
         detailSorts: {},
         globalCharts: {},
-        miniCharts: {}
+        miniCharts: {},
+        dateFinCompteur: null
     };
 
     // Utility Functions
@@ -1065,6 +1136,7 @@
         dataStore.loadedYears.clear();
         dataStore.currentFilter = 'all';
         dataStore.allExpanded = false;
+        dataStore.dateFinCompteur = null;
         Object.values(dataStore.globalCharts).forEach(c => c.destroy());
         Object.values(dataStore.miniCharts).forEach(c => c.destroy());
         dataStore.globalCharts = {};
@@ -1073,6 +1145,8 @@
         document.getElementById('appContainer').classList.remove('visible');
         document.getElementById('uploadContainer').classList.remove('hidden');
         document.getElementById('fileInput').value = '';
+        document.getElementById('dateFinCompteur').value = '';
+        document.getElementById('compteurFilter').style.display = 'none';
         hideError();
     }
     // Dashboard Functions
@@ -1092,6 +1166,7 @@
                         yearData: {},
                         partCEGlobale: 0,
                         partCEPonderee: 0,
+                        compteurRetenir: 0,
                         moyenneAnnuelle: 0,
                         nbPrestations: 0,
                         years: new Set()
@@ -1113,6 +1188,7 @@
                 ind.yearData[yr].subtotal += row.partCE;
                 ind.partCEGlobale += row.partCE;
                 ind.partCEPonderee += row.partCE * (CONFIG.WEIGHT_MAP[yr]||1);
+                if (yr !== 2026) ind.compteurRetenir += row.partCE * (CONFIG.WEIGHT_MAP[yr]||1);
                 ind.nbPrestations++;
             });
         });
@@ -1122,12 +1198,65 @@
             ind.moyenneAnnuelle = nbYears > 0 ? ind.partCEGlobale / nbYears : 0;
         });
         dataStore.aggregated = Array.from(map.values());
+        recomputeCompteur();
+        document.getElementById('compteurFilter').style.display = 'block';
         updateDataInfo();
         updateYearTabs();
         updateColumnVisibility();
         renderTable();
         updateStats();
         renderGlobalCharts();
+    }
+
+    function recomputeCompteur() {
+        const dateLimite = dataStore.dateFinCompteur; // Date JS ou null
+        dataStore.aggregated.forEach(ind => {
+            let total = 0;
+            [2023, 2024, 2025].forEach(yr => {
+                const yd = ind.yearData[yr];
+                if (!yd) return;
+                const weight = CONFIG.WEIGHT_MAP[yr] || 1;
+                yd.prestations.forEach(p => {
+                    if (!dateLimite) {
+                        total += p.partCE * weight;
+                    } else {
+                        // Normaliser la date du dossier en Date JS
+                        let d = p.dateDossier;
+                        if (d && !(d instanceof Date)) {
+                            if (typeof d === 'string') {
+                                // format dd/mm/yyyy ou yyyy-mm-dd
+                                if (d.includes('/')) {
+                                    const parts = d.split('/');
+                                    d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+                                } else {
+                                    d = new Date(d);
+                                }
+                            }
+                        }
+                        if (d instanceof Date && !isNaN(d) && d <= dateLimite) {
+                            total += p.partCE * weight;
+                        }
+                    }
+                });
+            });
+            ind.compteurRetenir = total;
+        });
+        // Mettre à jour le hint
+        const hint = document.getElementById('compteurHint');
+        if (hint) {
+            if (dateLimite) {
+                hint.textContent = `Prestations jusqu'au ${dateLimite.toLocaleDateString('fr-FR')} inclus`;
+                hint.classList.add('active');
+            } else {
+                hint.textContent = 'Toutes les prestations 2023–2025';
+                hint.classList.remove('active');
+            }
+        }
+        // Mettre à jour le badge de la stat card
+        const badge = document.querySelector('#statRetenirCard .retenir-badge');
+        if (badge) {
+            badge.textContent = dateLimite ? `≤ ${dateLimite.toLocaleDateString('fr-FR')}` : '≤ 2025';
+        }
     }
 
     function updateDataInfo() {
@@ -1178,7 +1307,9 @@
         const isAll = dataStore.currentFilter === 'all';
         document.getElementById('colPartPonderee').classList.toggle('col-hidden', !isAll);
         document.getElementById('colMoyenne').classList.toggle('col-hidden', !isAll);
+        document.getElementById('colRetenir').classList.toggle('col-hidden', !isAll);
         document.getElementById('statPondereCard').classList.toggle('hidden', !isAll);
+        document.getElementById('statRetenirCard').classList.toggle('hidden', !isAll);
         document.getElementById('statPartCELabel').textContent = isAll ? 'Part CSE Globale' : `Part CSE ${dataStore.currentFilter}`;
     }
 
@@ -1186,14 +1317,17 @@
         const data = getFilteredData();
         const isAll = dataStore.currentFilter === 'all';
         document.getElementById('statBeneficiaires').textContent = data.length;
-        let totalP = 0, totalCE = 0, totalPond = 0;
+        let totalP = 0, totalCE = 0, totalPond = 0, totalRetenir = 0;
         data.forEach(i => {
-            if (isAll) { totalP += i.nbPrestations; totalCE += i.partCEGlobale; totalPond += i.partCEPonderee; }
+            if (isAll) { totalP += i.nbPrestations; totalCE += i.partCEGlobale; totalPond += i.partCEPonderee; totalRetenir += i.compteurRetenir; }
             else { const yd = i.yearData[parseInt(dataStore.currentFilter)]; if (yd) { totalP += yd.prestations.length; totalCE += yd.subtotal; } }
         });
         document.getElementById('statPrestations').textContent = totalP;
         document.getElementById('statPartCE').textContent = formatCurrency(totalCE);
-        if (isAll) document.getElementById('statPondere').textContent = formatCurrency(totalPond);
+        if (isAll) {
+            document.getElementById('statPondere').textContent = formatCurrency(totalPond);
+            document.getElementById('statRetenir').textContent = formatCurrency(totalRetenir);
+        }
     }
 
     function getFilteredData() {
@@ -1284,7 +1418,7 @@
         const data = getFilteredData();
         const yf = dataStore.currentFilter;
         const isAll = yf === 'all';
-        if (!data.length) { tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun résultat</p></div></td></tr>`; return; }
+        if (!data.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun résultat</p></div></td></tr>`; return; }
         tbody.innerHTML = '';
         Object.values(dataStore.miniCharts).forEach(c => c.destroy());
         dataStore.miniCharts = {};
@@ -1297,10 +1431,10 @@
             const mainRow = document.createElement('tr');
             mainRow.className = 'main-row';
             const yearsHtml = years.map(y=>`<span class="year-dot ${ind.years.has(y)?'active':''}" style="${ind.years.has(y)?`background:${colors[y]};color:${colors[y]}`:''};"></span>`).join('');
-            mainRow.innerHTML = `<td class="expand-cell"><span class="expand-icon">▶</span></td><td class="name-cell">${ind.nom}</td><td>${ind.prenom}</td><td class="mono text-muted">${ind.matricule}</td><td><span class="cat-badge cat-${ind.categorie}">${ind.categorie}</span></td><td class="amount">${formatCurrency(dispCE)}</td><td class="amount amount-average ${isAll?'':'col-hidden'}">${formatCurrency(dispMoy)}</td><td class="amount amount-weighted ${isAll?'':'col-hidden'}">${formatCurrency(dispPond)}</td><td class="mono">${dispNb}</td><td><div class="year-dots">${yearsHtml}</div></td>`;
+            mainRow.innerHTML = `<td class="expand-cell"><span class="expand-icon">▶</span></td><td class="name-cell">${ind.nom}</td><td>${ind.prenom}</td><td class="mono text-muted">${ind.matricule}</td><td><span class="cat-badge cat-${ind.categorie}">${ind.categorie}</span></td><td class="amount">${formatCurrency(dispCE)}</td><td class="amount amount-average ${isAll?'':'col-hidden'}">${formatCurrency(dispMoy)}</td><td class="amount amount-weighted ${isAll?'':'col-hidden'}">${formatCurrency(dispPond)}</td><td class="amount amount-retenir ${isAll?'':'col-hidden'}">${formatCurrency(ind.compteurRetenir)}</td><td class="mono">${dispNb}</td><td><div class="year-dots">${yearsHtml}</div></td>`;
             const detailsRow = document.createElement('tr');
             detailsRow.className = 'details-row';
-            let detailsHtml = '<td colspan="10"><div class="details-wrapper">';
+            let detailsHtml = '<td colspan="11"><div class="details-wrapper">';
             let yearsToShow = Array.from(ind.years).sort();
             if (!isAll) yearsToShow = yearsToShow.filter(y => y===parseInt(yf));
             yearsToShow.forEach(year => {
@@ -1402,9 +1536,9 @@
         const data = getFilteredData();
         if (!data.length) { alert('Aucune donnée'); return; }
         const isAll = dataStore.currentFilter === 'all';
-        let csv = isAll ? 'Nom;Prénom;Matricule;Catégorie;Part CSE Globale;Moyenne/an;Part CSE Pondérée;Nb Prestations;Années\n' : 'Nom;Prénom;Matricule;Catégorie;Part CSE;Nb Prestations\n';
+        let csv = isAll ? 'Nom;Prénom;Matricule;Catégorie;Part CSE Globale;Moyenne/an;Part CSE Pondérée;Compteur à retenir;Nb Prestations;Années\n' : 'Nom;Prénom;Matricule;Catégorie;Part CSE;Nb Prestations\n';
         data.forEach(i => {
-            if (isAll) csv += `"${i.nom}";"${i.prenom}";${i.matricule};${i.categorie};${i.partCEGlobale.toFixed(2)};${i.moyenneAnnuelle.toFixed(2)};${i.partCEPonderee.toFixed(2)};${i.nbPrestations};"${Array.from(i.years).sort().join('|')}"\n`;
+            if (isAll) csv += `"${i.nom}";"${i.prenom}";${i.matricule};${i.categorie};${i.partCEGlobale.toFixed(2)};${i.moyenneAnnuelle.toFixed(2)};${i.partCEPonderee.toFixed(2)};${i.compteurRetenir.toFixed(2)};${i.nbPrestations};"${Array.from(i.years).sort().join('|')}"\n`;
             else { const yd = i.yearData[parseInt(dataStore.currentFilter)]; if (yd) csv += `"${i.nom}";"${i.prenom}";${i.matricule};${i.categorie};${yd.subtotal.toFixed(2)};${yd.prestations.length}\n`; }
         });
         const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
@@ -1412,6 +1546,69 @@
         link.href = URL.createObjectURL(blob);
         link.download = `export_cse_${dataStore.currentFilter}_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
+    }
+
+    function exportCompteurXL() {
+        const data = dataStore.aggregated;
+        if (!data.length) { alert('Aucune donnée'); return; }
+
+        // Trier par compteurRetenir décroissant
+        const sorted = [...data].sort((a, b) => b.compteurRetenir - a.compteurRetenir);
+
+        // Construire les lignes
+        const rows = sorted.map((i, idx) => ({
+            'Rang': idx + 1,
+            'Nom': i.nom,
+            'Prénom': i.prenom,
+            'Matricule': i.matricule,
+            'Compteur à retenir (≤ 2025)': parseFloat(i.compteurRetenir.toFixed(2))
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+
+        // Largeurs de colonnes
+        ws['!cols'] = [
+            { wch: 6 },   // Rang
+            { wch: 22 },  // Nom
+            { wch: 18 },  // Prénom
+            { wch: 14 },  // Matricule
+            { wch: 28 }   // Compteur
+        ];
+
+        // Style d'en-tête (fond orange, texte blanc, gras)
+        const headerStyle = {
+            font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+            fill: { fgColor: { rgb: 'C25A10' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+                bottom: { style: 'medium', color: { rgb: 'FFFFFF' } }
+            }
+        };
+        const headers = ['A1','B1','C1','D1','E1'];
+        headers.forEach(ref => {
+            if (ws[ref]) ws[ref].s = headerStyle;
+        });
+
+        // Style lignes paires (alternance)
+        rows.forEach((_, i) => {
+            const rowNum = i + 2;
+            ['A','B','C','D','E'].forEach(col => {
+                const ref = `${col}${rowNum}`;
+                if (ws[ref]) {
+                    ws[ref].s = {
+                        fill: { fgColor: { rgb: i % 2 === 0 ? 'FFF3E8' : 'FFFFFF' } },
+                        alignment: col === 'A' ? { horizontal: 'center' } : col === 'E' ? { horizontal: 'right' } : { horizontal: 'left' },
+                        font: col === 'E' ? { bold: true, color: { rgb: 'C25A10' } } : {}
+                    };
+                }
+            });
+        });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Compteur à retenir');
+
+        const date = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `compteur_a_retenir_${date}.xlsx`);
     }
 
     // ─── Chart Zoom Modal ──────────────────────────────────────────────────────
@@ -1578,6 +1775,29 @@
             });
         });
         document.getElementById('btnExport').addEventListener('click', exportCSV);
+        document.getElementById('btnExportXL').addEventListener('click', exportCompteurXL);
+
+        // Filtre date compteur
+        document.getElementById('dateFinCompteur').addEventListener('change', e => {
+            const val = e.target.value;
+            if (val) {
+                // Construire la date en heure locale (fin de journée)
+                const [y, m, d] = val.split('-').map(Number);
+                dataStore.dateFinCompteur = new Date(y, m - 1, d, 23, 59, 59);
+            } else {
+                dataStore.dateFinCompteur = null;
+            }
+            recomputeCompteur();
+            renderTable();
+            updateStats();
+        });
+        document.getElementById('btnClearDate').addEventListener('click', () => {
+            document.getElementById('dateFinCompteur').value = '';
+            dataStore.dateFinCompteur = null;
+            recomputeCompteur();
+            renderTable();
+            updateStats();
+        });
     });
     </script>
 </body>
